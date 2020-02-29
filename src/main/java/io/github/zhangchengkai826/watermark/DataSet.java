@@ -6,9 +6,6 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import org.apache.logging.log4j.Logger;
-
-import io.github.zhangchengkai826.watermark.DataSet.ColumnDef.Type;
-
 import org.apache.logging.log4j.LogManager;
 
 public class DataSet {
@@ -18,11 +15,20 @@ public class DataSet {
     void addRow(List<Object> row) {
         raw.add(row);
     }
+    List<Object> getRow(int index) {
+        return raw.get(index);
+    }
+    int getNumRows() {
+        return raw.size();
+    }
 
     // Values in a fixed column will not be changed in the embedding process.
     // A fixed column's constraint is ignored.
     // Id is zero-based.
-    Set<Integer> fixedColId = new TreeSet<>();
+    private Set<Integer> fixedColId = new TreeSet<>();
+    Set<Integer> getFixedColId() {
+        return fixedColId;
+    }
 
     static class ColumnDef {
         String name;

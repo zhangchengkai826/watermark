@@ -59,8 +59,8 @@ public class DbReader implements Closeable {
                                 throw new RuntimeException("Unsupported db data type for column " + i);
                             }
                         }
-                        dataSet.addRow(row);
                     }
+                    dataSet.addRow(row);
                 }
             }
         }

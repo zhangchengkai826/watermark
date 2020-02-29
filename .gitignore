@@ -5,7 +5,7 @@
 build
 
 # Ignore files with private information
-db.json
+env.test.json
 
 # Ignore log files
 watermark.log
