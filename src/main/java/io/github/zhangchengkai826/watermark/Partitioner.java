@@ -14,8 +14,17 @@ class Partitioner {
 
     static final int DEFAULT_NUM_PARTITIONS = 5;
 
-    DataSet[] partition(DataSet source, String secretKey) {
-        return partition(source, secretKey, DEFAULT_NUM_PARTITIONS);
+    // It stores the most recent partition assignment.
+    // partitionCache[a] = b means row a is assigned to partition b.
+    private List<Integer> partitionCache = new ArrayList<>();
+
+    private DataSet[] partitions;
+    DataSet[] getPartitions() {
+        return partitions;
+    }
+
+    void partition(DataSet source, String secretKey) {
+        partition(source, secretKey, DEFAULT_NUM_PARTITIONS);
     }
 
     String generateRowFeature(DataSet dataSet, int rowId) {
@@ -33,21 +42,31 @@ class Partitioner {
         return Math.abs(ByteBuffer.wrap(hash, 0, 4).getInt()) % numPartitions;
     }
 
-    DataSet[] partition(DataSet source, String secretKey, int numPartitions) {
-        DataSet[] partitions = new DataSet[numPartitions];
-        for(int i = 0; i < partitions.length; i++) partitions[i] = new DataSet();
+    void partition(DataSet source, String secretKey, int numPartitions) {
+        partitionCache.clear();
+        partitions = new DataSet[numPartitions];
+        for(int i = 0; i < partitions.length; i++) partitions[i] = source.getLinkedCopyWithIndependentRaw();
         
         for(int i = 0; i < source.getNumRows(); i++) {
             String rowFeature = generateRowFeature(source, i);
             int partitionId = generatePartitonId(rowFeature, secretKey, numPartitions);
             //LOGGER.trace("Row " + i + " belongs to partition " + partitionId);
             partitions[partitionId].addRow(source.getRow(i));
+            partitionCache.add(partitionId);
         }
         
         for(int i = 0; i < partitions.length; i++) {
             LOGGER.trace("Partition " + i + "'s size: " + partitions[i].getNumRows());
         }
+    }
 
-        return partitions;
+    DataSet reconstruct() {
+        if(partitions.length == 0) throw new RuntimeException("Cannot reconstruct original DataSet when partitions is empty.");
+        DataSet reconstructDataSet = partitions[0].getLinkedCopyWithIndependentRaw();
+        int[] iters = new int[partitions.length];
+        for(int partitionId: partitionCache) {
+            reconstructDataSet.addRow(partitions[partitionId].getRow(iters[partitionId]++));
+        }
+        return reconstructDataSet;
     }
 }

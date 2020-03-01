@@ -14,7 +14,12 @@ public class SystemTest {
             source = dbReader.read(testEnv.table);
         }
         assertEquals("DbReader should read all rows in the specified table into DataSet, no more, no less.", testEnv.tableNumRows, source.getNumRows());
+        source.setFixed(new String[]{"firmid", "fdate", "contnum", "setnum", "tradecomm", "buyorsal", "oppfirmid", "openflat", "oflatlose", "flatlose"});
         Partitioner partitioner = new Partitioner();
         partitioner.partition(source, testEnv.secretKey);
+        DataSet sourceEmb = partitioner.reconstruct();
+        try(DbWriter dbWriter = new DbWriter(testEnv.host, testEnv.port, testEnv.dbname, testEnv.user, testEnv.password)) {
+            dbWriter.write(testEnv.tableEmb, sourceEmb);
+        }
     }
 }

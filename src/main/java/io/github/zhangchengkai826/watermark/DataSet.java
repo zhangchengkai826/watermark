@@ -2,8 +2,10 @@ package io.github.zhangchengkai826.watermark;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.IntStream;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
@@ -28,6 +30,13 @@ public class DataSet {
     private Set<Integer> fixedColId = new TreeSet<>();
     Set<Integer> getFixedColId() {
         return fixedColId;
+    }
+    // It throws exceptions if no column with colName is found.
+    void setFixed(String colName) {
+        fixedColId.add(getColIdByName(colName));
+    }
+    void setFixed(String[] colNames) {
+        for(String name: colNames) fixedColId.add(getColIdByName(name));
     }
 
     static class ColumnDef {
@@ -85,8 +94,21 @@ public class DataSet {
     void addColDef(String name, String typeStr) {
         colDef.add(new ColumnDef(name, typeStr));
     }
+    int getNumCols() {
+        return colDef.size();
+    }
     ColumnDef getColDef(int zeroBasedIndex) {
         return colDef.get(zeroBasedIndex);
+    }
+    // It returns zero-based id, and throws exception if no such id is found.
+    int getColIdByName(String name) {
+        int id = findColIdByName(name);
+        if(id < 0) throw new NoSuchElementException("No column with such name is found.");
+        return id;
+    }
+    // It returns zero-based id, and returns negative value if no such id is found.
+    int findColIdByName(String name) {
+        return IntStream.range(0, getNumCols()).filter(i -> getColDef(i).name.equals(name)).findFirst().orElse(-1);
     }
 
     void autoChooseFixedColumns() {
@@ -105,5 +127,12 @@ public class DataSet {
         if(fixedColId.isEmpty()) {
             fixedColId.add(0);
         }
+    }
+
+    DataSet getLinkedCopyWithIndependentRaw() {
+        DataSet copy = new DataSet();
+        copy.colDef = colDef;
+        copy.fixedColId = fixedColId;
+        return copy;
     }
 }

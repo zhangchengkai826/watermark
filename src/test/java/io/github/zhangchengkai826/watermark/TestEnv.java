@@ -14,6 +14,7 @@ class TestEnv {
     String user;
     String password;
     String table;
+    String tableEmb;
     int tableNumRows;
     String secretKey;
 

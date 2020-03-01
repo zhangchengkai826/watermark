@@ -15,7 +15,7 @@ import java.util.Properties;
 public class DbReader implements Closeable {
     Connection conn;
 
-    public DbReader(String host, int port, String dbname, String user, String password) throws SQLException, ClassNotFoundException {
+    public DbReader(String host, int port, String dbname, String user, String password) throws SQLException {
         String connUrl = "jdbc:postgresql://" + host + ":" + port + "/" + dbname;
         Properties connProps = new Properties();
         connProps.setProperty("user", user);
