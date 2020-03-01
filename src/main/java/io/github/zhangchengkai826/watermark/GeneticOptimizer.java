@@ -2,34 +2,166 @@ package io.github.zhangchengkai826.watermark;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.PriorityQueue;
 import java.util.Random;
+import java.util.TreeSet;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+
 class GeneticOptimizer {
+    private static final Logger LOGGER = LogManager.getLogger();
+    
     class Population {
         class Individual {
-            Individual(BitSet chromosome) {
-                this.chromosome = chromosome;
+            class Chromosome {
+                Chromosome(BitSet bits) {
+                    this.bits = bits;
+                }
+                Chromosome(Chromosome clonee) {
+                    bits = (BitSet)bits.clone();
+                }
+                private BitSet bits;
+                BitSet getBits() {
+                    return bits;
+                }
+                private double antiGenize(BitSet bits, int geneBase, double originalDataElem) {
+                    long quantized = 0;
+                    for(int i = 0; i < geneLen; i++) {
+                        quantized <<= 1;
+                        if(bits.get(geneBase + i)) {
+                            quantized |= 1;
+                        }
+                    }
+                    return ((double)quantized + 0.5) / (1 << geneLen) * (2 * magOfAlt) - magOfAlt + originalDataElem;
+                }
+                List<Double> toDataVec() {
+                    List<Double> dataVec = new ArrayList<>();
+                    int geneBase = 0;
+                    for(int i = 0; i < getNumGenes(); i++) {
+                        dataVec.add(antiGenize(bits, geneBase, originalDataVec.get(i)));
+                        geneBase += geneLen;
+                    }
+                    return dataVec;
+                }
+
+                void crossover(Chromosome another) {
+                    int crossoverPoint = random.nextInt(getNumGenes()) * geneLen;
+                    for(int i = 0; i < crossoverPoint; i++) {
+                        boolean tmp = getBits().get(i);
+                        getBits().set(i, another.getBits().get(i));
+                        another.getBits().set(i, tmp);
+                    }
+                }
+                void mutation() {
+                    int mutationPoint = random.nextInt(getNumGenes() * geneLen);
+                    getBits().flip(mutationPoint);
+                }
             }
-            BitSet chromosome;
+            Individual(BitSet bits) {
+                this.chromosome = new Chromosome(bits);
+            }
+            Individual(Individual other) {
+                chromosome = new Chromosome(chromosome);
+            }
+            private Chromosome chromosome;
     
             private Optional<Double> fitnessCache = Optional.empty();
             private double calcFitness() {
-                List<Double> dataVec = antiChromosomize(chromosome);
+                List<Double> dataVec = chromosome.toDataVec();
                 return objectiveFunc.apply(dataVec) + penaltyMultiplier * penaltyFunc.apply(dataVec, originalDataVec);
             }
             double getFitness() {
                 if(!fitnessCache.isPresent()) fitnessCache = Optional.of(calcFitness());
                 return fitnessCache.get();
             }
+
+            void crossover(Individual another) {
+                chromosome.crossover(another.chromosome);
+            }
+            void mutation() {
+                chromosome.mutation();
+            }
+        }
+
+        private TreeSet<Individual> individuals = new TreeSet<>((x, y) -> (int)(y.getFitness() - x.getFitness()));
+        void addIndividual(Individual individual) {
+            individuals.add(individual);
+        }
+        Individual cloneFittestIndividual() {
+            return new Individual(individuals.first());
+        }
+        Individual clone2ndFittestIndividual() {
+            Iterator<Individual> it = individuals.iterator();
+            it.next();
+            return new Individual(it.next());
+        }
+        Individual cloneLeastFittestIndividual() {
+            return new Individual(individuals.last());
+        }
+        Individual clone2ndLeastFittestIndividual() {
+            Iterator<Individual> it = individuals.descendingIterator();
+            it.next();
+            return new Individual(it.next());
+        }
+
+        private Population() {}
+        void evolve() {
+            Individual offspring1 = cloneFittestIndividual();
+            Individual offspring2 = clone2ndFittestIndividual();
+
+            offspring1.crossover(offspring2);
+            if(random.nextInt() % 100 < mutationRate) offspring1.mutation();
+            if(random.nextInt() % 100 < mutationRate) offspring2.mutation();
+            
+            individuals.pollLast();
+            if(offspring1.getFitness() > offspring2.getFitness()) individuals.add(offspring1);
+            else individuals.add(offspring2);
+        }
+        void degrade() {
+            Individual offspring1 = cloneLeastFittestIndividual();
+            Individual offspring2 = clone2ndLeastFittestIndividual();
+
+            offspring1.crossover(offspring2);
+            if(random.nextInt() % 100 < mutationRate) offspring1.mutation();
+            if(random.nextInt() % 100 < mutationRate) offspring2.mutation();
+            
+            individuals.pollFirst();
+            if(offspring1.getFitness() < offspring2.getFitness()) individuals.add(offspring1);
+            else individuals.add(offspring2);
+        }
+    }
+
+    class PopulationBuilder {
+        private Population population = new Population();
+        Population build() {
+            return population;
+        }
+        PopulationBuilder addRandomizedIndividuals(int n) {
+            final int numGenes = originalDataVec.size();
+            for(int i = 0; i < n; i++) {
+                BitSet bits = new BitSet(numGenes * geneLen);
+                for(int j = 0; j < bits.size(); j++) {
+                    if(random.nextBoolean()) {
+                        bits.set(j);
+                    }
+                }
+                population.addIndividual(population.new Individual(bits));
+            }
+            return this;
         }
     }
 
     List<Double> originalDataVec;
+    int getNumGenes() {
+        return originalDataVec.size();
+    }
 
     Function<List<Double>, Double> objectiveFunc;
 
@@ -46,6 +178,10 @@ class GeneticOptimizer {
     static final int POPULATION_SIZE = 10;
     int populationSize = POPULATION_SIZE;
 
+    // (0, 100)
+    static final int MUTATION_RATE = 10;
+    int mutationRate = MUTATION_RATE;
+
     // It is usually a negative value.
     // If it is zero, penalty calculated by penalty function will not be applied.
     static final double DEFAULT_PENALTY_MULTIPLIER = -100.0;
@@ -58,71 +194,32 @@ class GeneticOptimizer {
     
     private Random random = new Random();
 
-    // private BitSet genize(double curDataElem, double originalDataElem) {
-    //     long quantized = (int)((curDataElem - originalDataElem + magOfAlt) / (magOfAlt * 2) * (1 << geneLen));
-    //     if(quantized == (1 << geneLen)) quantized--;
-    //     // The variable quantized ranges from 0 to (1 << genLen)-1, inclusive.
-    //     BitSet gene = new BitSet(geneLen);
-    //     for(int i = geneLen-1; i >= 0; i--) {
-    //         if((quantized & 0x1) == 1) {
-    //             gene.set(i);
-    //             quantized >>= 1;
-    //         }
-    //     }
-    //     return gene;
-    // }
-    private double antiGenize(BitSet gene, double originalDataElem) {
-        long quantized = 0;
-        for(int i = 0; i < geneLen; i++) {
-            quantized <<= 1;
-            if(gene.get(i)) {
-                quantized |= 1;
-            }
-        }
-        return ((double)quantized + 0.5) / (1 << geneLen) * (2 * magOfAlt) - magOfAlt + originalDataElem;
-    }
-    // private BitSet chromosomize(List<Double> dataVec) {
-    //     final int numGenes = dataVec.size();
-    //     BitSet chromosome = new BitSet(numGenes * geneLen);
-    //     for(int i = 0; i < dataVec.size(); i++) {
-    //         BitSet gene = genize(dataVec.get(i), originalDataVec.get(i));
-    //         for(int j = geneLen-1; j >= 0; j--) {
-    //             chromosome.set(geneLen*i + j, gene.get(j));
-    //         }
-    //     }
-    //     return chromosome;
-    // }
-    private List<Double> antiChromosomize(BitSet chromosome) {
-        List<Double> dataVec = new ArrayList<>();
-        final int numGenes = chromosome.size() / geneLen;
-        for(int i = 0; i < numGenes; i++) {
-            BitSet gene = chromosome.get(i*geneLen, (i+1)*geneLen);
-            dataVec.add(antiGenize(gene, originalDataVec.get(i)));
-        }
-        return dataVec;
-    }
-
-    private List<Individual> generateInitialPopulation() {
-        List<Individual> population = new ArrayList<>();
-        final int numGenes = originalDataVec.size();
-        for(int i = 0; i < populationSize; i++) {
-            BitSet chromosome = new BitSet(numGenes * geneLen);
-            for(int j = 0; j < chromosome.size(); j++) {
-                if(random.nextBoolean()) {
-                    chromosome.set(j);
-                }
-            }
-            population.add(new Individual(chromosome));
-        }
-        return population;
-    }
-
     void maximize() {
-        List<Individual> initialPopulation = generateInitialPopulation();
+        Population population = new PopulationBuilder().addRandomizedIndividuals(populationSize).build();
         int generationId = 0;
-        while(true) {
+        double maxFitness = population.cloneFittestIndividual().getFitness();
+        LOGGER.trace("Generation 0: maxFitness = " + maxFitness);
+        double lastMaxFitness;
+        do {
             generationId++;
-
-        }
+            lastMaxFitness = maxFitness;
+            population.evolve();
+            maxFitness = population.cloneFittestIndividual().getFitness();
+            LOGGER.trace("Generation " + generationId + ": maxFitness = " + maxFitness);
+        } while(maxFitness > lastMaxFitness);
+    }
+    void minimize() {
+        Population population = new PopulationBuilder().addRandomizedIndividuals(populationSize).build();
+        int generationId = 0;
+        double minFitness = population.cloneLeastFittestIndividual().getFitness();
+        LOGGER.trace("Generation 0: maxFitness = " + minFitness);
+        double lastMinFitness;
+        do {
+            generationId++;
+            lastMinFitness = minFitness;
+            population.degrade();
+            minFitness = population.cloneLeastFittestIndividual().getFitness();
+            LOGGER.trace("Generation " + generationId + ": maxFitness = " + minFitness);
+        } while(minFitness < lastMinFitness);
     }
 }
