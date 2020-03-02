@@ -32,11 +32,14 @@ public class DataSet {
         return fixedColId;
     }
     // It throws exceptions if no column with colName is found.
-    void setFixed(String colName) {
+    void setColumnAsFixed(String colName) {
         fixedColId.add(getColIdByName(colName));
     }
-    void setFixed(String[] colNames) {
+    void setColumnAsFixed(String[] colNames) {
         for(String name: colNames) fixedColId.add(getColIdByName(name));
+    }
+    boolean isColumnFixed(int colId) {
+        return fixedColId.contains(colId);
     }
 
     static class ColumnDef {
@@ -56,13 +59,22 @@ public class DataSet {
             // It only applies to integer or real type columns.
             // For integer type columns, it will be truncated.
             // It must be a positive value (for integer type columns, it must >= 1 due to truncation).
-            float magOfAlt = 1.0f;
+            private float magOfAlt = 1.0f;
+            float getMagOfAlt() {
+                return magOfAlt;
+            }
 
             // If it is true, the embbeder will try to make the embedded values' average as close to original values' average as possible.
             // It only applies to integer or real type columns.
-            boolean tryKeepAvg = true;
+            private boolean tryKeepAvg = true;
+            boolean getTryKeepAvg() {
+                return tryKeepAvg;
+            }
         }
-        Constraint constraint = new Constraint();
+        private Constraint constraint = new Constraint();
+        Constraint getConstraint() {
+            return constraint;
+        }
         
         ColumnDef(String name, String typeStr) {
             this.name = name;
