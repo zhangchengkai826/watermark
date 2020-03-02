@@ -16,10 +16,16 @@ public abstract class Optimizer {
         this.objectiveFunc = objectiveFunc;
     }
 
-    Optional<List<Double>> optimizedDataVec;
+    Optional<List<Double>> optimizedDataVec = Optional.empty();
 
     public List<Double> getOptimizedDataVec() {
         return optimizedDataVec.get();
+    }
+
+    Optional<Double> optimizedFunValue = Optional.empty();
+
+    public double getOptimizedFunValue() {
+        return optimizedFunValue.get();
     }
 
     public abstract void maximize();

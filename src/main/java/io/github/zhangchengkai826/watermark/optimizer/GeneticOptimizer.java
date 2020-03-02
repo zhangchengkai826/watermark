@@ -249,6 +249,7 @@ class GeneticOptimizer extends Optimizer {
             LOGGER.trace("Generation " + generationId + ": maxFitness = " + maxFitness);
         } while (maxFitness > lastMaxFitness);
         optimizedDataVec = Optional.of(population.getFittestIndividual().getChromosome().toDataVec());
+        optimizedFunValue = Optional.of(objectiveFunc.apply(getOptimizedDataVec()));
     }
 
     @Override
@@ -266,5 +267,6 @@ class GeneticOptimizer extends Optimizer {
             LOGGER.trace("Generation " + generationId + ": minFitness = " + minFitness);
         } while (minFitness < lastMinFitness);
         optimizedDataVec = Optional.of(population.getLeastFittestIndividual().getChromosome().toDataVec());
+        optimizedFunValue = Optional.of(objectiveFunc.apply(getOptimizedDataVec()));
     }
 }

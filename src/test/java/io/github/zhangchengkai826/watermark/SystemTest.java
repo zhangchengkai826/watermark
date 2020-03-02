@@ -21,6 +21,7 @@ public class SystemTest {
                 "oppfirmid", "openflat", "oflatlose", "flatlose" });
         Embedder embedder = new Embedder();
         DataSet sourceEmb = embedder.embed(source, new Watermark("zck"), testEnv.secretKey, 10);
+        double decodingThreshold = embedder.getDecodingThreshold();
         try (DbWriter dbWriter = new DbWriter(testEnv.host, testEnv.port, testEnv.dbname, testEnv.user,
                 testEnv.password)) {
             dbWriter.write(testEnv.tableEmb, sourceEmb);
