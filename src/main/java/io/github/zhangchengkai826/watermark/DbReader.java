@@ -26,18 +26,18 @@ public class DbReader implements Closeable {
 
     public DataSet read(String table) throws SQLException {
         DataSet dataSet = new DataSet();
-        try(PreparedStatement statement = conn.prepareStatement("SELECT * FROM " + table)) {
+        try (PreparedStatement statement = conn.prepareStatement("SELECT * FROM " + table)) {
             statement.setFetchSize(50);
-            try(ResultSet resultSet = statement.executeQuery()) {
+            try (ResultSet resultSet = statement.executeQuery()) {
                 ResultSetMetaData metaData = resultSet.getMetaData();
                 int numOfCols = metaData.getColumnCount();
-                for(int i = 1; i <= numOfCols; i++) {
+                for (int i = 1; i <= numOfCols; i++) {
                     dataSet.addColDef(metaData.getColumnLabel(i), metaData.getColumnTypeName(i));
                 }
-                while(resultSet.next()) {
+                while (resultSet.next()) {
                     List<Object> row = new ArrayList<>();
-                    for(int i = 1; i <= numOfCols; i++) {
-                        switch(dataSet.getColDef(i-1).type) {
+                    for (int i = 1; i <= numOfCols; i++) {
+                        switch (dataSet.getColDef(i - 1).type) {
                             case BPCHAR: {
                                 row.add(resultSet.getString(i));
                                 break;
@@ -54,7 +54,7 @@ public class DbReader implements Closeable {
                                 row.add(resultSet.getInt(i));
                                 break;
                             }
-                            case OTHER: 
+                            case OTHER:
                             default: {
                                 throw new RuntimeException("Unsupported db data type for column " + i);
                             }
@@ -72,7 +72,7 @@ public class DbReader implements Closeable {
     public void close() throws IOException {
         try {
             conn.close();
-        } catch(SQLException sqlex) {
+        } catch (SQLException sqlex) {
             throw new IOException(sqlex);
         }
     }

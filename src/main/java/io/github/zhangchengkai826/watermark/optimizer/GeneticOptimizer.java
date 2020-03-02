@@ -16,7 +16,7 @@ import org.apache.logging.log4j.Logger;
 class GeneticOptimizer extends Optimizer {
     private static final Logger LOGGER = LogManager.getLogger();
 
-    private GeneticOptimizer() {
+    GeneticOptimizer() {
     };
 
     class Population {
@@ -27,7 +27,7 @@ class GeneticOptimizer extends Optimizer {
                 }
 
                 Chromosome(Chromosome clonee) {
-                    bits = (BitSet) bits.clone();
+                    bits = (BitSet) clonee.getBits().clone();
                 }
 
                 private BitSet bits;
@@ -77,7 +77,7 @@ class GeneticOptimizer extends Optimizer {
             }
 
             Individual(Individual other) {
-                chromosome = new Chromosome(chromosome);
+                chromosome = new Chromosome(other.chromosome);
             }
 
             private Chromosome chromosome;
@@ -256,14 +256,14 @@ class GeneticOptimizer extends Optimizer {
         Population population = new PopulationBuilder().addRandomizedIndividuals(populationSize).build();
         int generationId = 0;
         double minFitness = population.getLeastFittestIndividual().getFitness();
-        LOGGER.trace("Generation 0: maxFitness = " + minFitness);
+        LOGGER.trace("Generation 0: minFitness = " + minFitness);
         double lastMinFitness;
         do {
             generationId++;
             lastMinFitness = minFitness;
             population.degrade();
             minFitness = population.getLeastFittestIndividual().getFitness();
-            LOGGER.trace("Generation " + generationId + ": maxFitness = " + minFitness);
+            LOGGER.trace("Generation " + generationId + ": minFitness = " + minFitness);
         } while (minFitness < lastMinFitness);
         optimizedDataVec = Optional.of(population.getLeastFittestIndividual().getChromosome().toDataVec());
     }

@@ -6,7 +6,8 @@ import java.io.InputStreamReader;
 import com.google.gson.Gson;
 
 class TestEnv {
-    private TestEnv() {}
+    private TestEnv() {
+    }
 
     String host;
     int port;
@@ -21,7 +22,7 @@ class TestEnv {
     static TestEnv loadFromJsonRes(String path) throws IOException {
         Gson gson = new Gson();
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        try(InputStreamReader reader = new InputStreamReader(classLoader.getResourceAsStream(path))) {
+        try (InputStreamReader reader = new InputStreamReader(classLoader.getResourceAsStream(path))) {
             return gson.fromJson(reader, TestEnv.class);
         }
     }

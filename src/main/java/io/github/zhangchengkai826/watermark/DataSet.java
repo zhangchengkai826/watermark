@@ -14,12 +14,15 @@ public class DataSet {
     private static final Logger LOGGER = LogManager.getLogger();
 
     private List<List<Object>> raw = new ArrayList<>();
+
     void addRow(List<Object> row) {
         raw.add(row);
     }
+
     List<Object> getRow(int index) {
         return raw.get(index);
     }
+
     int getNumRows() {
         return raw.size();
     }
@@ -28,16 +31,21 @@ public class DataSet {
     // A fixed column's constraint is ignored.
     // Id is zero-based.
     private Set<Integer> fixedColId = new TreeSet<>();
+
     Set<Integer> getFixedColId() {
         return fixedColId;
     }
+
     // It throws exceptions if no column with colName is found.
     void setColumnAsFixed(String colName) {
         fixedColId.add(getColIdByName(colName));
     }
+
     void setColumnAsFixed(String[] colNames) {
-        for(String name: colNames) fixedColId.add(getColIdByName(name));
+        for (String name : colNames)
+            fixedColId.add(getColIdByName(name));
     }
+
     boolean isColumnFixed(int colId) {
         return fixedColId.contains(colId);
     }
@@ -46,39 +54,49 @@ public class DataSet {
         String name;
 
         enum Type {
-            OTHER,
-            INT4,
-            FLOAT4,
-            BPCHAR,
-            DATE,
+            OTHER, INT4, FLOAT4, BPCHAR, DATE,
         }
+
         Type type = Type.OTHER;
 
         static class Constraint {
-            // The embedded value E for original value O must satisfy O-magOfAlt <= S <= O+magOfAlt.
+            // The embedded value E for original value O must satisfy O-magOfAlt <= S <=
+            // O+magOfAlt.
+            //
+            // It must be a positive value.
+            //
             // It only applies to integer or real type columns.
-            // For integer type columns, it will be truncated.
-            // It must be a positive value (for integer type columns, it must >= 1 due to truncation).
+            //
+            // For now, integer type columns are converted to real type columns when
+            // embedding, and truncated back to integer type after embedding, so if you want
+            // to reduce the possibility of watermark corruption caused by truncation,
+            // please set this value high (> 10) when possible for integer type columns.
             private float magOfAlt = 1.0f;
+
             float getMagOfAlt() {
                 return magOfAlt;
             }
 
-            // If it is true, the embbeder will try to make the embedded values' average as close to original values' average as possible.
+            // If it is true, the embbeder will try to make the embedded values' average as
+            // close to original values' average as possible.
+            //
             // It only applies to integer or real type columns.
             private boolean tryKeepAvg = true;
+
             boolean getTryKeepAvg() {
                 return tryKeepAvg;
             }
         }
+
         private Constraint constraint = new Constraint();
+
         Constraint getConstraint() {
             return constraint;
         }
-        
+
         ColumnDef(String name, String typeStr) {
             this.name = name;
-            switch(typeStr) {
+            switch (typeStr) {
                 case "int4": {
                     type = Type.INT4;
                     break;
@@ -102,41 +120,50 @@ public class DataSet {
             }
         }
     }
+
     private List<ColumnDef> colDef = new ArrayList<>();
+
     void addColDef(String name, String typeStr) {
         colDef.add(new ColumnDef(name, typeStr));
     }
+
     int getNumCols() {
         return colDef.size();
     }
+
     ColumnDef getColDef(int zeroBasedIndex) {
         return colDef.get(zeroBasedIndex);
     }
+
     // It returns zero-based id, and throws exception if no such id is found.
     int getColIdByName(String name) {
         int id = findColIdByName(name);
-        if(id < 0) throw new NoSuchElementException("No column with such name is found.");
+        if (id < 0)
+            throw new NoSuchElementException("No column with such name is found.");
         return id;
     }
+
     // It returns zero-based id, and returns negative value if no such id is found.
     int findColIdByName(String name) {
         return IntStream.range(0, getNumCols()).filter(i -> getColDef(i).name.equals(name)).findFirst().orElse(-1);
     }
 
     void autoChooseFixedColumns() {
-        if(colDef.isEmpty()) throw new RuntimeException("Cannot auto choose fixed columns when there is no column definitions.");
-        for(int i = 0; i < colDef.size(); i++) {
-            switch(colDef.get(i).type) {
+        if (colDef.isEmpty())
+            throw new RuntimeException("Cannot auto choose fixed columns when there is no column definitions.");
+        for (int i = 0; i < colDef.size(); i++) {
+            switch (colDef.get(i).type) {
                 case BPCHAR:
                 case DATE:
                 case OTHER: {
                     fixedColId.add(i);
                     break;
                 }
-                default: {}
+                default: {
+                }
             }
         }
-        if(fixedColId.isEmpty()) {
+        if (fixedColId.isEmpty()) {
             fixedColId.add(0);
         }
     }
