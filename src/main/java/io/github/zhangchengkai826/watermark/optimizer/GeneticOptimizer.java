@@ -155,11 +155,8 @@ class GeneticOptimizer extends Optimizer {
             if (random.nextInt() % 100 < mutationRate)
                 offspring2.mutation();
 
-            individuals.pollLast();
-            if (offspring1.getFitness() > offspring2.getFitness())
-                individuals.add(offspring1);
-            else
-                individuals.add(offspring2);
+            if(individuals.add(offspring1.getFitness() > offspring2.getFitness() ? offspring1 : offspring2))
+                individuals.pollLast();
         }
 
         void degrade() {
@@ -172,11 +169,8 @@ class GeneticOptimizer extends Optimizer {
             if (random.nextInt() % 100 < mutationRate)
                 offspring2.mutation();
 
-            individuals.pollFirst();
-            if (offspring1.getFitness() < offspring2.getFitness())
-                individuals.add(offspring1);
-            else
-                individuals.add(offspring2);
+            if(individuals.add(offspring1.getFitness() < offspring2.getFitness() ? offspring1 : offspring2))
+                individuals.pollFirst();
         }
     }
 
@@ -222,6 +216,10 @@ class GeneticOptimizer extends Optimizer {
     static final int MUTATION_RATE = 10;
     int mutationRate = MUTATION_RATE;
 
+    // Number of evolving or degrading rounds with no improvement after which evolving or degrading will be stopped.
+    static final int PATIENCE = 10;
+    int patience = PATIENCE;
+
     // It is usually a negative value.
     // If it is zero, penalty calculated by penalty function will not be applied.
     static final double DEFAULT_PENALTY_MULTIPLIER = -100.0;
@@ -239,15 +237,24 @@ class GeneticOptimizer extends Optimizer {
         Population population = new PopulationBuilder().addRandomizedIndividuals(populationSize).build();
         int generationId = 0;
         double maxFitness = population.getFittestIndividual().getFitness();
-        LOGGER.trace("Generation 0: maxFitness = " + maxFitness);
-        double lastMaxFitness;
-        do {
+        double bestFitness = maxFitness;
+        int numNoImprovments = 0;
+        LOGGER.trace("Generation " + generationId + ": maxFitness = " + maxFitness + ", bestFitness = " + bestFitness);
+        while(true) {
             generationId++;
-            lastMaxFitness = maxFitness;
             population.evolve();
             maxFitness = population.getFittestIndividual().getFitness();
-            LOGGER.trace("Generation " + generationId + ": maxFitness = " + maxFitness);
-        } while (maxFitness > lastMaxFitness);
+            if(maxFitness > bestFitness) {
+                bestFitness = maxFitness;
+                numNoImprovments = 0;
+            }
+            else {
+                numNoImprovments++;
+                if(numNoImprovments > patience) break;
+            }
+            LOGGER.trace("Generation " + generationId + ": maxFitness = " + maxFitness + ", bestFitness = " + bestFitness);
+        }
+        LOGGER.trace("Generation " + generationId + ": maxFitness = " + maxFitness + ", bestFitness = " + bestFitness);
         optimizedDataVec = Optional.of(population.getFittestIndividual().getChromosome().toDataVec());
         optimizedFunValue = Optional.of(objectiveFunc.apply(getOptimizedDataVec()));
     }
@@ -257,15 +264,24 @@ class GeneticOptimizer extends Optimizer {
         Population population = new PopulationBuilder().addRandomizedIndividuals(populationSize).build();
         int generationId = 0;
         double minFitness = population.getLeastFittestIndividual().getFitness();
-        LOGGER.trace("Generation 0: minFitness = " + minFitness);
-        double lastMinFitness;
-        do {
+        double bestFitness = minFitness;
+        int numNoImprovments = 0;
+        LOGGER.trace("Generation " + generationId + ": minFitness = " + minFitness + ", bestFitness = " + bestFitness);
+        while(true) {
             generationId++;
-            lastMinFitness = minFitness;
             population.degrade();
             minFitness = population.getLeastFittestIndividual().getFitness();
-            LOGGER.trace("Generation " + generationId + ": minFitness = " + minFitness);
-        } while (minFitness < lastMinFitness);
+            if(minFitness < bestFitness) {
+                bestFitness = minFitness;
+                numNoImprovments = 0;
+            }
+            else {
+                numNoImprovments++;
+                if(numNoImprovments > patience) break;
+            }
+            LOGGER.trace("Generation " + generationId + ": minFitness = " + minFitness + ", bestFitness = " + bestFitness);
+        }
+        LOGGER.trace("Generation " + generationId + ": minFitness = " + minFitness + ", bestFitness = " + bestFitness);
         optimizedDataVec = Optional.of(population.getLeastFittestIndividual().getChromosome().toDataVec());
         optimizedFunValue = Optional.of(objectiveFunc.apply(getOptimizedDataVec()));
     }

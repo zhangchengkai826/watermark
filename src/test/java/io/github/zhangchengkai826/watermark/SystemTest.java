@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Map;
 
 public class SystemTest {
     @Test
@@ -20,11 +21,11 @@ public class SystemTest {
         source.setColumnAsFixed(new String[] { "firmid", "fdate", "contnum", "setnum", "tradecomm", "buyorsal",
                 "oppfirmid", "openflat", "oflatlose", "flatlose" });
         Embedder embedder = new Embedder();
-        DataSet sourceEmb = embedder.embed(source, new Watermark("zck"), testEnv.secretKey, 10);
-        double decodingThreshold = embedder.getDecodingThreshold();
-        try (DbWriter dbWriter = new DbWriter(testEnv.host, testEnv.port, testEnv.dbname, testEnv.user,
-                testEnv.password)) {
-            dbWriter.write(testEnv.tableEmb, sourceEmb);
-        }
+        DataSet sourceEmb = embedder.embed(source, new Watermark("zck"), testEnv.secretKey, 96);
+        Map<String, Double> decodingThresholds = embedder.getDecodingThresholds();
+        // try (DbWriter dbWriter = new DbWriter(testEnv.host, testEnv.port, testEnv.dbname, testEnv.user,
+        //         testEnv.password)) {
+        //     dbWriter.write(testEnv.tableEmb, sourceEmb);
+        // }
     }
 }

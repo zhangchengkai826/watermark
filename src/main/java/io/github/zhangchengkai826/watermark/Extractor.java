@@ -1,7 +1,10 @@
 package io.github.zhangchengkai826.watermark;
 
 public class Extractor {
-    public String extract(DataSet source) {
-        return "";
+    public Watermark extract(DataSet source, String secretKey, int numPartitions, double decodingThreshold) {
+        Partitioner partitioner = new Partitioner(numPartitions);
+        partitioner.partition(source, secretKey);
+
+        return new Watermark("watermarkStr");
     }
 }

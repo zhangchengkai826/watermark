@@ -1,7 +1,9 @@
 package io.github.zhangchengkai826.watermark;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
 
@@ -16,55 +18,88 @@ import io.github.zhangchengkai826.watermark.optimizer.Optimizer;
 public class Embedder {
     private static final Logger LOGGER = LogManager.getLogger();
 
-    private List<Double> minimizedHidingFunValues = new ArrayList<>();
-    private List<Double> maximizedHidingFunValues = new ArrayList<>();
+    // Each embeded column has its own list of minimizedHidingFunValue &
+    // maximizedHidingFunValue.
+    //
+    // Map's key -> column's name, value -> column's list of minimizedHidingFunValue
+    // & maximizedHidingFunValue
+    private Optional<Map<String, List<Double>>> minimizedHidingFunValues = Optional.empty();
 
-    private Optional<Double> decodingThreshold = Optional.empty();
-
-    public double getDecodingThreshold() {
-        if (!decodingThreshold.isPresent())
-            calcDecodingThreshold();
-        return decodingThreshold.get();
+    private Map<String, List<Double>> getMinimizedHidingFunValues() {
+        return minimizedHidingFunValues.get();
     }
 
-    private void calcDecodingThreshold() {
-        final int numEncodedBits = minimizedHidingFunValues.size() + maximizedHidingFunValues.size();
-        final double p0 = (double) minimizedHidingFunValues.size() / numEncodedBits;
-        final double p1 = 1 - p0;
+    private void setMinimizedHidingFunValues(Map<String, List<Double>> newVal) {
+        minimizedHidingFunValues = Optional.of(newVal);
+    }
 
-        SummaryStatistics ss = new SummaryStatistics();
-        for (double x : minimizedHidingFunValues)
-            ss.addValue(x);
-        final double mean0 = ss.getMean();
-        final double stdev0 = ss.getStandardDeviation();
-        final double var0 = ss.getVariance();
+    private Optional<Map<String, List<Double>>> maximizedHidingFunValues = Optional.empty();
 
-        ss.clear();
-        for (double x : maximizedHidingFunValues)
-            ss.addValue(x);
-        final double mean1 = ss.getMean();
-        final double stdev1 = ss.getStandardDeviation();
-        final double var1 = ss.getVariance();
+    private Map<String, List<Double>> getMaximizedHidingFunValues() {
+        return maximizedHidingFunValues.get();
+    }
 
-        final double a = (var0 - var1) / (2 * var0 * var1);
-        final double b = (mean0 * var1 - mean1 * var0) / (var0 * var1);
-        final double c = Math.log((p0 * stdev1) / (p1 * stdev0))
-                + (mean1 * mean1 * var0 - mean0 * mean0 * var1) / (2 * var0 * var1);
-        final double deltaRoot = Math.sqrt(b * b - 4 * a * c);
+    private void setMaximizedHidingFunValues(Map<String, List<Double>> newVal) {
+        maximizedHidingFunValues = Optional.of(newVal);
+    }
 
-        final double root0 = (-b - deltaRoot) / (2 * a);
-        final double root1 = (-b + deltaRoot) / (2 * a);
+    // Each embeded column has its own decodingThreshold.
+    //
+    // Map's key -> column's name, value -> column's list of minimizedHidingFunValue
+    // & maximizedHidingFunValue
+    private Optional<Map<String, Double>> decodingThresholds = Optional.empty();
 
-        final Predicate<Double> secondOrderTest = root -> {
-            final double m0 = root - mean0;
-            final double m1 = root - mean1;
-            final double secondOrderEst = p1 * m1 / (var1 * stdev1) * Math.exp(-m1 * m1 / (2 * var1))
-                    - p0 * m0 / (var0 * stdev0) * Math.exp(-m0 * m0 / (2 * var0));
-            return secondOrderEst > 0;
-        };
+    public Map<String, Double> getDecodingThresholds() {
+        return decodingThresholds.get();
+    }
 
-        decodingThreshold = Optional.of(secondOrderTest.test(root0) ? root0 : root1);
-        LOGGER.trace("Decoding threshold: " + decodingThreshold.get());
+    private void calcDecodingThresholds() {
+        Map<String, Double> thresholds = new HashMap<>();
+
+        for (String colName : getMinimizedHidingFunValues().keySet()) {
+            List<Double> minValues = getMinimizedHidingFunValues().get(colName);
+            List<Double> maxValues = getMaximizedHidingFunValues().get(colName);
+
+            final int numEncodedBits = minValues.size() + maxValues.size();
+            final double p0 = (double) minValues.size() / numEncodedBits;
+            final double p1 = 1 - p0;
+
+            SummaryStatistics ss = new SummaryStatistics();
+            for (double x : minValues)
+                ss.addValue(x);
+            final double mean0 = ss.getMean();
+            final double stdev0 = ss.getStandardDeviation();
+            final double var0 = ss.getVariance();
+
+            ss.clear();
+            for (double x : maxValues)
+                ss.addValue(x);
+            final double mean1 = ss.getMean();
+            final double stdev1 = ss.getStandardDeviation();
+            final double var1 = ss.getVariance();
+
+            final double a = (var0 - var1) / (2 * var0 * var1);
+            final double b = (mean0 * var1 - mean1 * var0) / (var0 * var1);
+            final double c = Math.log((p0 * stdev1) / (p1 * stdev0))
+                    + (mean1 * mean1 * var0 - mean0 * mean0 * var1) / (2 * var0 * var1);
+            final double deltaRoot = Math.sqrt(b * b - 4 * a * c);
+
+            final double root0 = (-b - deltaRoot) / (2 * a);
+            final double root1 = (-b + deltaRoot) / (2 * a);
+
+            final Predicate<Double> secondOrderTest = root -> {
+                final double m0 = root - mean0;
+                final double m1 = root - mean1;
+                final double secondOrderEst = p1 * m1 / (var1 * stdev1) * Math.exp(-m1 * m1 / (2 * var1))
+                        - p0 * m0 / (var0 * stdev0) * Math.exp(-m0 * m0 / (2 * var0));
+                return secondOrderEst > 0;
+            };
+
+            double threshold = secondOrderTest.test(root0) ? root0 : root1;
+            LOGGER.trace("Decoding threshold for column '" + colName + "': " + threshold);
+            thresholds.put(colName, threshold);
+        }
+        decodingThresholds = Optional.of(thresholds);
     }
 
     public DataSet embed(DataSet source, Watermark watermark, String secretKey, int numPartitions) {
@@ -72,12 +107,16 @@ public class Embedder {
         partitioner.partition(source, secretKey);
 
         DataSet[] partitions = partitioner.getPartitions();
-        int numEmbededBits = 0;
-        for (DataSet partition : partitions) {
-            for (int i = 0; i < partition.getNumCols(); i++) {
-                if (!partition.isColumnFixed(i)) {
+        setMinimizedHidingFunValues((new HashMap<>()));
+        setMaximizedHidingFunValues((new HashMap<>()));
+        for (int i = 0; i < source.getNumCols(); i++) {
+            if (!source.isColumnFixed(i)) {
+                int numEmbededBits = 0;
+                DataSet.ColumnDef colDef = source.getColDef(i);
+                getMinimizedHidingFunValues().put(colDef.name, new ArrayList<>());
+                getMaximizedHidingFunValues().put(colDef.name, new ArrayList<>());
+                for (DataSet partition : partitions) {
                     boolean bit = watermark.getBit(numEmbededBits % watermark.getNumBits());
-                    DataSet.ColumnDef colDef = partition.getColDef(i);
 
                     GeneticOptimizerBuilder optimizerBuilder = new GeneticOptimizerBuilder();
                     optimizerBuilder.setMagOfAlt(colDef.getConstraint().getMagOfAlt());
@@ -109,10 +148,10 @@ public class Embedder {
 
                     if (bit) {
                         optimizer.maximize();
-                        maximizedHidingFunValues.add(optimizer.getOptimizedFunValue());
+                        getMaximizedHidingFunValues().get(colDef.name).add(optimizer.getOptimizedFunValue());
                     } else {
                         optimizer.minimize();
-                        minimizedHidingFunValues.add(optimizer.getOptimizedFunValue());
+                        getMinimizedHidingFunValues().get(colDef.name).add(optimizer.getOptimizedFunValue());
                     }
 
                     List<Double> optimizedDataVec = optimizer.getOptimizedDataVec();
@@ -141,6 +180,7 @@ public class Embedder {
         }
 
         DataSet sourceEmb = partitioner.reconstruct();
+        calcDecodingThresholds();
         return sourceEmb;
     }
 
