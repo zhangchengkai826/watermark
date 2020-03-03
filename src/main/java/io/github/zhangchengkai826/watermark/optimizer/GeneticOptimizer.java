@@ -108,10 +108,15 @@ class GeneticOptimizer extends Optimizer {
             }
         }
 
-        private TreeSet<Individual> individuals = new TreeSet<>((x, y) -> (int) (y.getFitness() - x.getFitness()));
+        private TreeSet<Individual> individuals = new TreeSet<>((x, y) -> {
+            double diff = y.getFitness() - x.getFitness();
+            if(diff > 0) return 1;
+            else if(diff == 0) return 0;
+            else return -1;
+        });
 
-        void addIndividual(Individual individual) {
-            individuals.add(individual);
+        boolean addIndividual(Individual individual) {
+            return individuals.add(individual);
         }
 
         Individual getFittestIndividual() {
@@ -190,7 +195,7 @@ class GeneticOptimizer extends Optimizer {
                         bits.set(j);
                     }
                 }
-                population.addIndividual(population.new Individual(bits));
+                if(!population.addIndividual(population.new Individual(bits))) i--;
             }
             return this;
         }
@@ -217,12 +222,12 @@ class GeneticOptimizer extends Optimizer {
     int mutationRate = MUTATION_RATE;
 
     // Number of evolving or degrading rounds with no improvement after which evolving or degrading will be stopped.
-    static final int PATIENCE = 10;
+    static final int PATIENCE = 20;
     int patience = PATIENCE;
 
     // It is usually a negative value.
     // If it is zero, penalty calculated by penalty function will not be applied.
-    static final double DEFAULT_PENALTY_MULTIPLIER = -100.0;
+    static final double DEFAULT_PENALTY_MULTIPLIER = -1.0;
     double penaltyMultiplier = DEFAULT_PENALTY_MULTIPLIER;
 
     static final BiFunction<List<Double>, List<Double>, Double> DEFAULT_PENALTY_FUNC = (curVar, originalVar) -> {

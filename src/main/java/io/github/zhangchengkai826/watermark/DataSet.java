@@ -81,7 +81,7 @@ public class DataSet {
             // close to original values' average as possible.
             //
             // It only applies to integer or real type columns.
-            private boolean tryKeepAvg = true;
+            private boolean tryKeepAvg = false;
 
             boolean getTryKeepAvg() {
                 return tryKeepAvg;

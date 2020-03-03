@@ -3,6 +3,8 @@ package io.github.zhangchengkai826.watermark.optimizer;
 import java.util.List;
 import java.util.Optional;
 
+import io.github.zhangchengkai826.watermark.function.ObjectiveFunction;
+
 public abstract class Optimizer {
     List<Double> originalDataVec;
 

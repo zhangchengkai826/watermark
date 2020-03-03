@@ -23,9 +23,9 @@ public class SystemTest {
         Embedder embedder = new Embedder();
         DataSet sourceEmb = embedder.embed(source, new Watermark("zck"), testEnv.secretKey, 96);
         Map<String, Double> decodingThresholds = embedder.getDecodingThresholds();
-        // try (DbWriter dbWriter = new DbWriter(testEnv.host, testEnv.port, testEnv.dbname, testEnv.user,
-        //         testEnv.password)) {
-        //     dbWriter.write(testEnv.tableEmb, sourceEmb);
-        // }
+        try (DbWriter dbWriter = new DbWriter(testEnv.host, testEnv.port, testEnv.dbname, testEnv.user,
+                testEnv.password)) {
+            dbWriter.write(testEnv.tableEmb, sourceEmb);
+        }
     }
 }
