@@ -1,7 +1,6 @@
 package io.github.zhangchengkai826.watermark.function;
 
 import java.util.List;
-import java.util.function.Predicate;
 
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 
@@ -18,6 +17,8 @@ public class DecodingThresholdEvaluatingFunctionB extends DecodingThresholdEvalu
             ss.addValue(x);
         final double mean1 = ss.getMean();
 
-        return (mean0 + mean1) / 2;
+        double threshold = (mean0 + mean1) / 2;
+        debugCheckThresholdQuality(minValues, maxValues, threshold);
+        return threshold;
     }
 }

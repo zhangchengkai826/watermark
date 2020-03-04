@@ -9,8 +9,8 @@ import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.github.zhangchengkai826.watermark.function.DecodingThresholdEvaluatingFunctionB;
-import io.github.zhangchengkai826.watermark.function.ObjectiveFunctionA2;
+import io.github.zhangchengkai826.watermark.function.DecodingThresholdEvaluatingFunctionA;
+import io.github.zhangchengkai826.watermark.function.ObjectiveFunction;
 import io.github.zhangchengkai826.watermark.optimizer.GeneticOptimizerBuilder;
 import io.github.zhangchengkai826.watermark.optimizer.Optimizer;
 
@@ -59,18 +59,17 @@ public class Embedder {
             List<Double> minValues = getMinimizedHidingFunValues().get(colName);
             List<Double> maxValues = getMaximizedHidingFunValues().get(colName);
 
-            double threshold = new DecodingThresholdEvaluatingFunctionB().apply(minValues, maxValues);
+            double threshold = new DecodingThresholdEvaluatingFunctionA().apply(minValues, maxValues);
             LOGGER.trace("Decoding threshold for column '" + colName + "': " + threshold);
             thresholds.put(colName, threshold);
         }
         decodingThresholds = Optional.of(thresholds);
     }
 
-    public DataSet embed(DataSet source, Watermark watermark, String secretKey, int numPartitions) {
+    public DataSet embed(DataSet source, Watermark watermark, String secretKey, int numPartitions, ObjectiveFunction objectiveFunction) {
         Partitioner partitioner = new Partitioner(numPartitions);
         partitioner.partition(source, secretKey);
 
-        DataSet[] partitions = partitioner.getPartitions();
         setMinimizedHidingFunValues((new HashMap<>()));
         setMaximizedHidingFunValues((new HashMap<>()));
         for (int i = 0; i < source.getNumCols(); i++) {
@@ -79,7 +78,7 @@ public class Embedder {
                 DataSet.ColumnDef colDef = source.getColDef(i);
                 getMinimizedHidingFunValues().put(colDef.name, new ArrayList<>());
                 getMaximizedHidingFunValues().put(colDef.name, new ArrayList<>());
-                for (DataSet partition : partitions) {
+                for (DataSet partition : partitioner.getPartitions()) {
                     boolean bit = watermark.getBit(numEmbededBits % watermark.getNumBits());
 
                     GeneticOptimizerBuilder optimizerBuilder = new GeneticOptimizerBuilder();
@@ -88,27 +87,9 @@ public class Embedder {
                         optimizerBuilder.noPenalty();
                     Optimizer optimizer = optimizerBuilder.build();
 
-                    List<Double> originalDataVec = new ArrayList<>();
-                    for (int j = 0; j < partition.getNumRows(); j++) {
-                        switch (colDef.type) {
-                            case INT4: {
-                                originalDataVec.add(((Integer) partition.getRow(j).get(i)).doubleValue());
-                                break;
-                            }
-                            case FLOAT4: {
-                                originalDataVec.add(((Float) partition.getRow(j).get(i)).doubleValue());
-                                break;
-                            }
-                            default: {
-                                LOGGER.trace("Column Name: " + colDef.name + ", Column Type: " + colDef.type);
-                                throw new RuntimeException(
-                                        "For now, Embedder can only embed watermark to integer or real type columns.");
-                            }
-                        }
-                    }
-                    optimizer.setOriginalDataVec(originalDataVec);
+                    optimizer.setOriginalDataVec(partition.getColumnAsDataVec(i));
 
-                    optimizer.setObjectiveFunc(new ObjectiveFunctionA2());
+                    optimizer.setObjectiveFunc(objectiveFunction);
 
                     if (bit) {
                         optimizer.maximize();
@@ -118,25 +99,7 @@ public class Embedder {
                         getMinimizedHidingFunValues().get(colDef.name).add(optimizer.getOptimizedFunValue());
                     }
 
-                    List<Double> optimizedDataVec = optimizer.getOptimizedDataVec();
-                    for (int j = 0; j < partition.getNumRows(); j++) {
-                        Object optimizedDataElem;
-                        switch (colDef.type) {
-                            case INT4: {
-                                optimizedDataElem = optimizedDataVec.get(j).intValue();
-                                break;
-                            }
-                            case FLOAT4: {
-                                optimizedDataElem = optimizedDataVec.get(j).floatValue();
-                                break;
-                            }
-                            default: {
-                                throw new RuntimeException(
-                                        "For now, Embedder can only embed watermark to integer or real type columns.");
-                            }
-                        }
-                        partition.getRow(j).set(i, optimizedDataElem);
-                    }
+                    partition.setColumnByDataVec(i, optimizer.getOptimizedDataVec());
 
                     numEmbededBits++;
                 }

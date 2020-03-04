@@ -257,7 +257,7 @@ class GeneticOptimizer extends Optimizer {
                 numNoImprovments++;
                 if(numNoImprovments > patience) break;
             }
-            LOGGER.trace("Generation " + generationId + ": maxFitness = " + maxFitness + ", bestFitness = " + bestFitness);
+            //LOGGER.trace("Generation " + generationId + ": maxFitness = " + maxFitness + ", bestFitness = " + bestFitness);
         }
         LOGGER.trace("Generation " + generationId + ": maxFitness = " + maxFitness + ", bestFitness = " + bestFitness);
         optimizedDataVec = Optional.of(population.getFittestIndividual().getChromosome().toDataVec());
@@ -284,7 +284,7 @@ class GeneticOptimizer extends Optimizer {
                 numNoImprovments++;
                 if(numNoImprovments > patience) break;
             }
-            LOGGER.trace("Generation " + generationId + ": minFitness = " + minFitness + ", bestFitness = " + bestFitness);
+            //LOGGER.trace("Generation " + generationId + ": minFitness = " + minFitness + ", bestFitness = " + bestFitness);
         }
         LOGGER.trace("Generation " + generationId + ": minFitness = " + minFitness + ", bestFitness = " + bestFitness);
         optimizedDataVec = Optional.of(population.getLeastFittestIndividual().getChromosome().toDataVec());

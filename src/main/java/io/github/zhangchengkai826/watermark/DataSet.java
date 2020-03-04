@@ -15,15 +15,15 @@ public class DataSet {
 
     private List<List<Object>> raw = new ArrayList<>();
 
-    void addRow(List<Object> row) {
+    public void addRow(List<Object> row) {
         raw.add(row);
     }
 
-    List<Object> getRow(int index) {
+    public List<Object> getRow(int index) {
         return raw.get(index);
     }
 
-    int getNumRows() {
+    public int getNumRows() {
         return raw.size();
     }
 
@@ -32,22 +32,27 @@ public class DataSet {
     // Id is zero-based.
     private Set<Integer> fixedColId = new TreeSet<>();
 
-    Set<Integer> getFixedColId() {
+    public Set<Integer> getFixedColId() {
         return fixedColId;
     }
 
     // It throws exceptions if no column with colName is found.
-    void setColumnAsFixed(String colName) {
+    public void setColumnAsFixed(String colName) {
         fixedColId.add(getColIdByName(colName));
     }
 
-    void setColumnAsFixed(String[] colNames) {
+    public void setColumnAsFixed(String[] colNames) {
         for (String name : colNames)
             fixedColId.add(getColIdByName(name));
     }
 
-    boolean isColumnFixed(int colId) {
+    public boolean isColumnFixed(int colId) {
         return fixedColId.contains(colId);
+    }
+
+    public void setColumnConstraintMagOfAlt(String colName, float value) {
+        int colId = getColIdByName(colName);
+        getColDef(colId).setConstraintMagOfAlt(value);
     }
 
     static class ColumnDef {
@@ -77,6 +82,10 @@ public class DataSet {
                 return magOfAlt;
             }
 
+            void setMagOfAlt(float value) {
+                magOfAlt = value;
+            }
+
             // If it is true, the embbeder will try to make the embedded values' average as
             // close to original values' average as possible.
             //
@@ -92,6 +101,10 @@ public class DataSet {
 
         Constraint getConstraint() {
             return constraint;
+        }
+
+        void setConstraintMagOfAlt(float value) {
+            constraint.magOfAlt = value;
         }
 
         ColumnDef(String name, String typeStr) {
@@ -127,7 +140,7 @@ public class DataSet {
         colDef.add(new ColumnDef(name, typeStr));
     }
 
-    int getNumCols() {
+    public int getNumCols() {
         return colDef.size();
     }
 
@@ -144,7 +157,7 @@ public class DataSet {
     }
 
     // It returns zero-based id, and returns negative value if no such id is found.
-    int findColIdByName(String name) {
+    public int findColIdByName(String name) {
         return IntStream.range(0, getNumCols()).filter(i -> getColDef(i).name.equals(name)).findFirst().orElse(-1);
     }
 
@@ -173,5 +186,58 @@ public class DataSet {
         copy.colDef = colDef;
         copy.fixedColId = fixedColId;
         return copy;
+    }
+
+    List<Double> getColumnAsDataVec(String colName) {
+        return getColumnAsDataVec(getColIdByName(colName));
+    }
+
+    List<Double> getColumnAsDataVec(int colId) {
+        ColumnDef colDef = getColDef(colId);
+        List<Double> dataVec = new ArrayList<>();
+        for (int j = 0; j < getNumRows(); j++) {
+            switch (colDef.type) {
+                case INT4: {
+                    dataVec.add(((Integer) getRow(j).get(colId)).doubleValue());
+                    break;
+                }
+                case FLOAT4: {
+                    dataVec.add(((Float) getRow(j).get(colId)).doubleValue());
+                    break;
+                }
+                default: {
+                    LOGGER.trace("Column Name: " + colDef.name + ", Column Type: " + colDef.type);
+                    throw new RuntimeException(
+                            "For now, only integer or real type columns can be converted into dataVec.");
+                }
+            }
+        }
+        return dataVec;
+    }
+
+    void setColumnByDataVec(String colName, List<Double> dataVec) {
+        setColumnByDataVec(getColIdByName(colName), dataVec);
+    }
+
+    void setColumnByDataVec(int colId, List<Double> dataVec) {
+        ColumnDef colDef = getColDef(colId);
+        for (int j = 0; j < getNumRows(); j++) {
+            Object dataElem;
+            switch (colDef.type) {
+                case INT4: {
+                    dataElem = dataVec.get(j).intValue();
+                    break;
+                }
+                case FLOAT4: {
+                    dataElem = dataVec.get(j).floatValue();
+                    break;
+                }
+                default: {
+                    throw new RuntimeException(
+                            "For now, dataVec can only be coverted into integer or real type columns.");
+                }
+            }
+            getRow(j).set(colId, dataElem);
+        }
     }
 }

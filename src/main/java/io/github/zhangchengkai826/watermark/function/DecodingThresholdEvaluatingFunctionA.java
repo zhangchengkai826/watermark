@@ -43,6 +43,8 @@ public class DecodingThresholdEvaluatingFunctionA extends DecodingThresholdEvalu
             return secondOrderEst > 0;
         };
 
-        return secondOrderTest.test(root0) ? root0 : root1;
+        double threshold = secondOrderTest.test(root0) ? root0 : root1;
+        debugCheckThresholdQuality(minValues, maxValues, threshold);
+        return threshold;
     }
 }

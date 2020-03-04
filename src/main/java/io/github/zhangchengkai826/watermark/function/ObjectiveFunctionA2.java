@@ -11,6 +11,11 @@ public class ObjectiveFunctionA2 extends ObjectiveFunctionA1 {
         for (double data : dataVec)
             ss.addValue(data);
         double ref = ss.getMean() + stdevMultipiler * ss.getStandardDeviation();
-        return dataVec.stream().filter(d -> d >= ref).reduce(0.0, (result, elem) -> result + elem);
+        double above = 0,  notAbove = 0;
+        for(double data : dataVec) {
+            if(data > ref) above += (data - ref);
+            else notAbove += (ref - data);
+        }
+        return above / (above + notAbove);
     }
 }

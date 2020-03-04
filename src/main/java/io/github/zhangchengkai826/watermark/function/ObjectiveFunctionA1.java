@@ -6,7 +6,7 @@ import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 
 public class ObjectiveFunctionA1 extends ObjectiveFunction {
     // It's in the range (0, 1)
-    static final double STDEV_MULTIPLIER = 0.35;
+    static final double STDEV_MULTIPLIER = 0.75;
     double stdevMultipiler = STDEV_MULTIPLIER;
 
     @Override
